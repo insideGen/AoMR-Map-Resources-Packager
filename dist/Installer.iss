@@ -117,7 +117,9 @@ begin
   SubCaptionLabel.Caption := 'Installation will take place in the following automatically detected folders:';
   SubCaptionLabel.Left := 0;
   SubCaptionLabel.Top := 0;
+  SubCaptionLabel.Width := InfoPage.Surface.Width;
   SubCaptionLabel.AutoSize := True;
+  SubCaptionLabel.WordWrap := True;
   //
   GameFolderLabel := TLabel.Create(InfoPage);
   GameFolderLabel.Parent := InfoPage.Surface;
@@ -128,6 +130,7 @@ begin
   GameFolderEdit.Parent := InfoPage.Surface;
   GameFolderEdit.Text := sGameInstallPath;
   GameFolderEdit.ReadOnly := True;
+  GameFolderEdit.AutoSelect := False;
   ControlArray[0] := GameFolderEdit;
   //
   UserFolderLabel := TLabel.Create(InfoPage);
@@ -139,6 +142,7 @@ begin
   UserFolderEdit.Parent := InfoPage.Surface;
   UserFolderEdit.Text := sGameUserPath;
   UserFolderEdit.ReadOnly := True;
+  UserFolderEdit.AutoSelect := False;
   ControlArray[1] := UserFolderEdit;
   //
   for nI := 0 to GetArrayLength(LabelArray) - 1 do
@@ -237,6 +241,26 @@ begin
   Result := bResult;
 end;
 
+procedure CurPageChanged(CurPageID: Integer);
+begin
+  case CurPageID of
+    InfoPage.ID:
+      begin
+        WizardForm.NextButton.Caption := SetupMessage(msgButtonNext);
+        if bGamePathsFound then
+          Wizardform.NextButton.Enabled := True
+        else
+          Wizardform.NextButton.Enabled := False;
+      end;
+    wpSelectComponents:
+      begin
+        WizardForm.NextButton.Caption := SetupMessage(msgButtonInstall);
+      end;
+  end;
+  WizardForm.ActiveControl := nil;
+  Log(Format('CurPageChanged: %d', [PageIndexFromID(CurPageID)]));
+end;
+
 function NextButtonClick(CurPageID: Integer): Boolean;
 var
   bResult: Boolean;
@@ -251,33 +275,6 @@ begin
   end;
   Log(Format('NextButtonClick: %d -> %d', [PageIndexFromID(CurPageID), bResult]));
   Result := bResult;
-end;
-
-procedure CurPageChanged(CurPageID: Integer);
-begin
-  case CurPageID of
-    InfoPage.ID:
-      begin
-        if bGamePathsFound then
-          Wizardform.NextButton.Enabled := True
-        else
-          Wizardform.NextButton.Enabled := False;
-      end;
-    wpReady:
-      begin
-        WizardForm.NextButton.Caption := SetupMessage(msgButtonInstall)
-      end;
-    wpFinished:
-      begin
-        WizardForm.NextButton.Caption := SetupMessage(msgButtonFinish)
-      end;
-    else
-      begin
-        WizardForm.NextButton.Caption := SetupMessage(msgButtonNext);
-        WizardForm.CancelButton.Enabled := True;
-      end;
-  end;
-  Log(Format('CurPageChanged: %d', [PageIndexFromID(CurPageID)]));
 end;
 
 procedure CurStepChanged(CurStep: TSetupStep);

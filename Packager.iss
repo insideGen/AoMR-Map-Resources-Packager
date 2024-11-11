@@ -99,7 +99,9 @@ begin
   SubCaptionLabel.Caption := 'The packager will search for resources in the following automatically detected folders:';
   SubCaptionLabel.Left := 0;
   SubCaptionLabel.Top := 0;
+  SubCaptionLabel.Width := InfoPage.Surface.Width;
   SubCaptionLabel.AutoSize := True;
+  SubCaptionLabel.WordWrap := True;
   //
   GameFolderLabel := TLabel.Create(InfoPage);
   GameFolderLabel.Parent := InfoPage.Surface;
@@ -110,6 +112,7 @@ begin
   GameFolderEdit.Parent := InfoPage.Surface;
   GameFolderEdit.Text := sGameInstallPath;
   GameFolderEdit.ReadOnly := True;
+  GameFolderEdit.AutoSelect := False;
   ControlArray[0] := GameFolderEdit;
   //
   UserFolderLabel := TLabel.Create(InfoPage);
@@ -121,6 +124,7 @@ begin
   UserFolderEdit.Parent := InfoPage.Surface;
   UserFolderEdit.Text := sGameUserPath;
   UserFolderEdit.ReadOnly := True;
+  GameFolderEdit.AutoSelect := False;
   ControlArray[1] := UserFolderEdit;
   //
   UsernameLabel := TLabel.Create(InfoPage);
@@ -132,6 +136,7 @@ begin
   UsernameEdit.Parent := InfoPage.Surface;
   UsernameEdit.Text := sSteamUsername;
   UsernameEdit.ReadOnly := True;
+  GameFolderEdit.AutoSelect := False;
   ControlArray[2] := UsernameEdit;
   //
   for nI := 0 to GetArrayLength(LabelArray) - 1 do
@@ -163,15 +168,16 @@ begin
   //
   FileInstructionLabel := TNewStaticText.Create(InfoPage);
   FileInstructionLabel.Parent := InfoPage.Surface;
-  FileInstructionLabel.Caption := 'Prefix your files with your Steam username followed by an underscore.';
+  FileInstructionLabel.Caption := 'Only files prefixed with your Steam username followed by an underscore will be searched. Remember to name each map and each map resource correctly in the game editor.';
   FileInstructionLabel.Font.Color := clRed;
   FileInstructionLabel.Left := 0;
   FileInstructionLabel.Top := UserFolderEdit.Top + 2 * (15 + nVSpacing);
+  FileInstructionLabel.Width := InfoPage.Surface.Width;
   FileInstructionLabel.AutoSize := True;
   FileInstructionLabel.WordWrap := True;
   //
-  UsernameLabel.Top := FileInstructionLabel.Top + 3 + 1 * (nMaxInputHeight + nVSpacing);
-  UsernameEdit.Top := FileInstructionLabel.Top + 1 * (nMaxInputHeight + nVSpacing);
+  UsernameLabel.Top := FileInstructionLabel.Top + FileInstructionLabel.Height + 3 + nVSpacing;
+  UsernameEdit.Top := FileInstructionLabel.Top + FileInstructionLabel.Height + nVSpacing;
   //
   FileExampleLabel := TNewStaticText.Create(InfoPage);
   FileExampleLabel.Parent := InfoPage.Surface;
@@ -190,8 +196,8 @@ var
   ResultCode: Integer;
   UnzipCmd: String;
   IsccExe: String;
-  PreInstallerBuildCmd: String;
-  PreInstallerExe: String;
+  PrePackagerBuildCmd: String;
+  PrePackagerExe: String;
   InstallerBuildCmd: String;
   ProgressPage: TOutputMarqueeProgressWizardPage;
   
@@ -199,40 +205,45 @@ begin
   // Init variables
   UnzipCmd := ExpandConstant('Expand-Archive -Path "{tmp}\iscc.zip" -DestinationPath "{tmp}\iscc"');
   IsccExe := ExpandConstant('{tmp}\iscc\ISCC.exe');
-  PreInstallerBuildCmd := ExpandConstant('/DSteamUserId="'+sSteamUsername+'" /DSteamGameId="{#SteamGameId}" /DGameInstallDir="'+sGameInstallPath+'" /DGameUserDir="'+sGameUserPath+'" "{tmp}\AoMR-Map-Resources-PreInstaller.iss"');
-  PreInstallerExe := ExpandConstant('{tmp}\build\AoMR-Map-Resources-PreInstaller.exe');
-  InstallerBuildCmd := ExpandConstant('/O"{src}" /DSteamUserId="'+sSteamUsername+'" /DSteamGameId="{#SteamGameId}" "{tmp}\AoMR-Map-Resources-Installer.iss"');
-  ProgressPage := CreateOutputMarqueeProgressPage('Selection', 'File selection');
+  PrePackagerBuildCmd := ExpandConstant('/DSteamUserId="'+sSteamUsername+'" /DSteamGameId="{#SteamGameId}" /DGameInstallDir="'+sGameInstallPath+'" /DGameUserDir="'+sGameUserPath+'" "{tmp}\PrePackager.iss"');
+  PrePackagerExe := ExpandConstant('{tmp}\build\AoMR-Map-Resources-PrePackager.exe');
+  InstallerBuildCmd := ExpandConstant('/O"{src}" /DSteamUserId="'+sSteamUsername+'" /DSteamGameId="{#SteamGameId}" "{tmp}\Installer.iss"');
   
+  ProgressPage := CreateOutputMarqueeProgressPage('Resource selection', 'Preparing the resource selection page');
   ProgressPage.Show();
   
   ExecPowerShell(UnzipCmd, ResultCode);
   
-  // Compile PreInstaller
+  // Compile PrePackager
   if ResultCode = 0 then
     begin
-      Log('ISCC.exe ' + PreInstallerBuildCmd);
-      if Exec(IsccExe, PreInstallerBuildCmd, ExpandConstant('{tmp}'), SW_HIDE, ewWaitUntilTerminated, ResultCode) then
+      Log('ISCC.exe ' + PrePackagerBuildCmd);
+      if Exec(IsccExe, PrePackagerBuildCmd, ExpandConstant('{tmp}'), SW_HIDE, ewWaitUntilTerminated, ResultCode) then
         if ResultCode = 0 then
             Log('Success')
         else
           Log('Error: ' + IntToStr(ResultCode))
       else
-        Log('Error: ' + SysErrorMessage(ResultCode))
+        Log('Error: ' + SysErrorMessage(ResultCode));
     end;
   
-  // Execute PreInstaller
+  // Execute PrePackager
   if ResultCode = 0 then
     begin
-      Log(PreInstallerExe);
-      if Exec(PreInstallerExe, '', ExpandConstant('{tmp}'), SW_SHOWNORMAL, ewWaitUntilTerminated, ResultCode) then
+      Log(PrePackagerExe);
+      if Exec(PrePackagerExe, '', ExpandConstant('{tmp}'), SW_SHOWNORMAL, ewWaitUntilTerminated, ResultCode) then
         if ResultCode = 0 then
             Log('Success')
         else
           Log('Error: ' + IntToStr(ResultCode))
       else
-        Log('Error: ' + SysErrorMessage(ResultCode))
+        Log('Error: ' + SysErrorMessage(ResultCode));
     end;
+  
+  ProgressPage.Hide();
+  
+  ProgressPage := CreateOutputMarqueeProgressPage('Resource packaging', 'Work in progress');
+  ProgressPage.Show();
   
   // Compile Installer
   if ResultCode = 0 then
@@ -244,7 +255,7 @@ begin
         else
           Log('Error: ' + IntToStr(ResultCode))
       else
-        Log('Error: ' + SysErrorMessage(ResultCode))
+        Log('Error: ' + SysErrorMessage(ResultCode));
     end;
   
   ProgressPage.Hide();
@@ -310,6 +321,21 @@ begin
   Result := bResult;
 end;
 
+procedure CurPageChanged(CurPageID: Integer);
+begin
+  case CurPageID of
+    InfoPage.ID:
+      begin
+        if bGamePathsFound then
+          Wizardform.NextButton.Enabled := True
+        else
+          Wizardform.NextButton.Enabled := False;
+      end;
+  end;
+  WizardForm.ActiveControl := nil;
+  Log(Format('CurPageChanged: %d', [PageIndexFromID(CurPageID)]));
+end;
+
 function NextButtonClick(CurPageID: Integer): Boolean;
 var
   bResult: Boolean;
@@ -324,29 +350,6 @@ begin
   end;
   Log(Format('NextButtonClick: %d -> %d', [PageIndexFromID(CurPageID), bResult]));
   Result := bResult;
-end;
-
-procedure CurPageChanged(CurPageID: Integer);
-begin
-  case CurPageID of
-    InfoPage.ID:
-      begin
-        if bGamePathsFound then
-          Wizardform.NextButton.Enabled := True
-        else
-          Wizardform.NextButton.Enabled := False;
-      end;
-    wpFinished:
-      begin
-        WizardForm.NextButton.Caption := SetupMessage(msgButtonFinish)
-      end;
-    else
-      begin
-        WizardForm.NextButton.Caption := SetupMessage(msgButtonNext);
-        WizardForm.CancelButton.Enabled := True;
-      end;
-  end;
-  Log(Format('CurPageChanged: %d', [PageIndexFromID(CurPageID)]));
 end;
 
 function UpdateReadyMemo(Space, NewLine, MemoUserInfoInfo, MemoDirInfo, MemoTypeInfo, MemoComponentsInfo, MemoGroupInfo, MemoTasksInfo: String): String;

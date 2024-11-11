@@ -6,11 +6,11 @@
 #define GameInstallDir GameInstallDir /* Passed through parameters | ExecAndGetFirstLine("command.bat", "gamedir " + SteamGameId, AddBackslash(SourcePath) + "dist") */
 #define GameUserDir GameUserDir /* Passed through parameters | ExecAndGetFirstLine("command.bat", "userdir " + SteamGameId, AddBackslash(SourcePath) + "dist") */
 
-#define MyAppName "Age Of Mythology: Retold - Map Resources PreInstaller"
+#define MyAppName "Age Of Mythology: Retold - Map Resources Packager"
 #define MyAppVersion "1.0.0.0"
 #define MyAppPublisher SteamUserId
 #define MyAppURL ""
-#define MyAppExeName "AoMR-Map-Resources-PreInstaller"
+#define MyAppExeName "AoMR-Map-Resources-PrePackager"
 
 [Setup]
 ; NOTE: To generate a new GUID, click Tools | Generate GUID inside the IDE.
@@ -101,6 +101,12 @@ begin
   Result := bResult;
 end;
 
+procedure CurPageChanged(CurPageID: Integer);
+begin
+  WizardForm.ActiveControl := nil;
+  Log(Format('CurPageChanged: %d', [PageIndexFromID(CurPageID)]));
+end;
+
 function NextButtonClick(CurPageID: Integer): Boolean;
 var
   bResult: Boolean;
@@ -108,22 +114,6 @@ begin
   bResult := True;
   Log(Format('NextButtonClick: %d -> %d', [PageIndexFromID(CurPageID), bResult]));
   Result := bResult;
-end;
-
-procedure CurPageChanged(CurPageID: Integer);
-begin
-  case CurPageID of
-    wpFinished:
-      begin
-        WizardForm.NextButton.Caption := SetupMessage(msgButtonFinish)
-      end;
-    else
-      begin
-        WizardForm.NextButton.Caption := SetupMessage(msgButtonNext);
-        WizardForm.CancelButton.Enabled := True;
-      end;
-  end;
-  Log(Format('CurPageChanged: %d', [PageIndexFromID(CurPageID)]));
 end;
 
 procedure CurStepChanged(CurStep: TSetupStep);
